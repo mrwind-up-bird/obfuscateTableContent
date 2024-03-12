@@ -57,10 +57,21 @@ func obfuscateRow(row map[string]string, fieldsToObfuscate []string) {
 }
 
 func obfuscateString(input string) string {
-	if len(input) > 6 {
+	if len(input) > 4 {
 		return input[:3] + "xxx" + input[len(input)-3:]
 	}
 	return input
+}
+
+func generateReplaceStatement(tableName string, row map[string]string, fieldsToObfuscate []string) string {
+	columns := strings.Join(fieldsToObfuscate, ",")
+	values := make([]string, len(fieldsToObfuscate))
+
+	for i, field := range fieldsToObfuscate {
+		values[i] = fmt.Sprintf("'%s'", row[field])
+	}
+
+	return fmt.Sprintf("REPLACE INTO %s (%s) VALUES (%s);", tableName, columns, strings.Join(values, ","))
 }
 
 func main() {
@@ -112,6 +123,10 @@ func main() {
 			obfuscateRow(row, fieldsToObfuscate)
 
 			fmt.Println(row)
+			fmt.Print("\n")
+
+			replaceStatement := generateReplaceStatement(tableName, row, fieldsToObfuscate)
+			fmt.Println(replaceStatement)
 			fmt.Print("\n")
 		}
 
