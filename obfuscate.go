@@ -15,7 +15,7 @@ import (
 )
 
 func readConfig() {
-	viper.SetConfigType("toml") // Oder das Format deiner Konfigurationsdatei
+	viper.SetConfigType("toml")
 	configData, err := os.ReadFile("config.txt")
 	if err != nil {
 		log.Fatal(err)
