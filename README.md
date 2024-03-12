@@ -20,3 +20,8 @@ Or build a native Application:
 ``go build``
 
 
+## Config
+Copy config.sample.txt to config.txt and add the desired values
+
+
+
