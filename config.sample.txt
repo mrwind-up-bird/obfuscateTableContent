@@ -1,4 +1,11 @@
-[database]
+[databaseSource]
+username = ""
+password = ""
+host = ""
+port = ""
+dbname = ""
+
+[databaseTarget]
 username = ""
 password = ""
 host = ""
@@ -8,3 +15,6 @@ dbname = ""
 [tables]
 taccount = "cMail,cMailRechnung,cBenutzername"
 taccounthistory = "cVorname,cNachname,cFirma,cFirmenzusatz,cStrasse,cOrt,cTel,cFax,cBankinstitut,cBankname,cKontoinhaber,nBLZ,nKontoNr,cIBAN,cBIC"
+
+[truncateTables]
+truncateTables = "taccounthistory"

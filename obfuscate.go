@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"unicode"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/viper"
@@ -27,13 +28,23 @@ func readConfig() {
 	}
 }
 
-func getConnectionString() string {
+func getConnectionStringSourceDb() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
-		viper.GetString("database.username"),
-		viper.GetString("database.password"),
-		viper.GetString("database.host"),
-		viper.GetString("database.port"),
-		viper.GetString("database.dbname"),
+		viper.GetString("databaseSource.username"),
+		viper.GetString("databaseSource.password"),
+		viper.GetString("databaseSource.host"),
+		viper.GetString("databaseSource.port"),
+		viper.GetString("databaseSource.dbname"),
+	)
+}
+
+func getConnectionStringTargetDb() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		viper.GetString("databaseTarget.username"),
+		viper.GetString("databaseTarget.password"),
+		viper.GetString("databaseTarget.host"),
+		viper.GetString("databaseTarget.port"),
+		viper.GetString("databaseTarget.dbname"),
 	)
 }
 
@@ -48,19 +59,49 @@ func getSettings() map[string][]string {
 
 func obfuscateRow(row map[string]string, fieldsToObfuscate []string) {
 	for _, field := range fieldsToObfuscate {
-		if value, ok := row[field]; ok {
+		if _, ok := row[field]; ok {
 			obfuscatedValue := obfuscateString(row[field])
 			row[field] = obfuscatedValue
-			fmt.Printf("Obfuscate %s field: %v to new Value: %s\n", field, value, obfuscatedValue)
+			//fmt.Printf("Obfuscate %s field: %v to new Value: %s\n", field, value, obfuscatedValue)
 		}
 	}
 }
 
 func obfuscateString(input string) string {
-	if len(input) > 4 {
-		return input[:3] + "xxx" + input[len(input)-3:]
+	if len(input) <= 3 {
+		return "***"
 	}
-	return input
+
+	if len(input) <= 6 {
+		masked := input[:1]
+		for i := 1; i < len(input)-1; i++ {
+			if isSpecialCharacter(input[i]) {
+				masked += string(input[i])
+			} else {
+				masked += "*"
+			}
+		}
+		masked += input[len(input)-1:]
+
+		return masked
+	}
+
+	masked := input[:3]
+	for i := 3; i < len(input)-3; i++ {
+		if isSpecialCharacter(input[i]) {
+			masked += string(input[i])
+		} else {
+			masked += "*"
+		}
+	}
+
+	masked += input[len(input)-3:]
+
+	return masked
+}
+
+func isSpecialCharacter(char byte) bool {
+	return !unicode.IsLetter(rune(char)) && !unicode.IsNumber(rune(char))
 }
 
 func generateReplaceStatement(tableName string, row map[string]string, fieldsToObfuscate []string) string {
@@ -78,7 +119,7 @@ func main() {
 
 	readConfig()
 
-	db, err := sql.Open("mysql", getConnectionString())
+	db, err := sql.Open("mysql", getConnectionStringSourceDb())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +131,7 @@ func main() {
 	}
 
 	for tableName, fieldsToObfuscate := range getSettings() {
-		fmt.Printf("\nTable: %s", tableName)
+		fmt.Printf("\nTable: %s\n", tableName)
 		fieldsString := strings.Join(fieldsToObfuscate, ",")
 		query := fmt.Sprintf("SELECT %s FROM %s LIMIT 50", fieldsString, tableName)
 		rows, err := db.Query(query)
@@ -119,15 +160,12 @@ func main() {
 			for i, column := range columns {
 				row[column] = string(*values[i].(*sql.RawBytes))
 			}
-			fmt.Printf("------------\n")
-			obfuscateRow(row, fieldsToObfuscate)
 
-			fmt.Println(row)
-			fmt.Print("\n")
+			obfuscateRow(row, fieldsToObfuscate)
 
 			replaceStatement := generateReplaceStatement(tableName, row, fieldsToObfuscate)
 			fmt.Println(replaceStatement)
-			fmt.Print("\n")
+
 		}
 
 		if err := rows.Err(); err != nil {
